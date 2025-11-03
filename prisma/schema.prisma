@@ -1,0 +1,250 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Enums ----------
+enum UserRole {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum VehicleStatus {
+  IN_STOCK
+  RESERVED
+  SOLD
+}
+
+enum Fuel {
+  GASOLINA
+  ALCOOL
+  FLEX
+  DIESEL
+  HIBRIDO
+  ELETRICO
+}
+
+enum Gearbox {
+  MANUAL
+  AUTOMATICO
+  CVT
+  AUTOMATIZADO
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  WON
+  LOST
+}
+
+enum LeadSource {
+  FORM
+  WHATSAPP
+  IMPORT
+}
+
+enum AuditEntity {
+  VEHICLE
+  LEAD
+  PREF
+  GARAGE
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATUS_CHANGE
+}
+
+// ---------- Tabelas ----------
+model User {
+  id           String    @id @default(uuid())
+  name         String?
+  email        String    @unique
+  passwordHash String
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // relations
+  garages      GarageUser[]
+  handledLeads Lead[]       @relation("LeadHandledBy")
+
+  vehiclesCreated Vehicle[] @relation("VehicleCreatedBy")
+  vehiclesUpdated Vehicle[] @relation("VehicleUpdatedBy")
+
+  auditLogs AuditLog[]
+
+  @@index([email])
+}
+
+model Garage {
+  id                String   @id @default(uuid())
+  name              String
+  doc               String? // CNPJ opcional
+  phoneWhatsapp     String?
+  addressLine       String?
+  city              String?
+  state             String?
+  zip               String?
+  geoLat            Float?
+  geoLng            Float?
+  website           String?
+  instagram         String?
+  facebook          String?
+  themePrimaryColor String?
+  slug              String   @unique
+  isPublishEnabled  Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // relations
+  users    GarageUser[]
+  vehicles Vehicle[]
+  leads    Lead[]
+  prefs    Preference[]
+  audits   AuditLog[]
+
+  @@index([city, state])
+}
+
+model GarageUser {
+  // tabela de associação (N:N User<->Garage)
+  garageId String
+  userId   String
+  role     UserRole @default(ADMIN)
+
+  garage Garage @relation(fields: [garageId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([garageId, userId])
+  @@index([userId])
+  @@index([garageId])
+}
+
+model Vehicle {
+  id              String        @id @default(uuid())
+  garageId        String
+  title           String?
+  renavam         String? // unique por garagem (ver unique composto abaixo)
+  brand           String
+  model           String
+  version         String?
+  yearFabrication Int
+  yearModel       Int
+  mileageKm       Int?
+  fuel            Fuel
+  gearbox         Gearbox
+  color           String?
+  price           Decimal?      @db.Decimal(12, 2) // pode ser NULL se priceOnRequest=true
+  priceOnRequest  Boolean       @default(false)
+  status          VehicleStatus @default(IN_STOCK)
+  description     String?
+  publishedAt     DateTime?
+  createdById     String?
+  updatedById     String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+
+  garage    Garage         @relation(fields: [garageId], references: [id], onDelete: Cascade)
+  images    VehicleImage[]
+  leads     Lead[]
+  createdBy User?          @relation("VehicleCreatedBy", fields: [createdById], references: [id])
+  updatedBy User?          @relation("VehicleUpdatedBy", fields: [updatedById], references: [id])
+
+  @@unique([garageId, renavam]) // RN-01: unicidade dentro da garagem
+  @@index([garageId, status])
+  @@index([brand, model, yearModel])
+  @@index([price])
+}
+
+model VehicleImage {
+  id        String   @id @default(uuid())
+  vehicleId String
+  url       String
+  isCover   Boolean  @default(false)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  // Observação: "exatamente 1 capa" precisa de índice parcial no Postgres (ver nota abaixo).
+
+  @@index([vehicleId, position])
+}
+
+model Lead {
+  id          String     @id @default(uuid())
+  garageId    String
+  vehicleId   String? // pode ser NULL para lead geral
+  name        String
+  email       String?
+  phone       String?
+  message     String?
+  consentLgpd Boolean    @default(false)
+  status      LeadStatus @default(NEW)
+  source      LeadSource @default(FORM)
+  handledById String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  garage    Garage   @relation(fields: [garageId], references: [id], onDelete: Cascade)
+  vehicle   Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  handledBy User?    @relation("LeadHandledBy", fields: [handledById], references: [id], onDelete: SetNull)
+
+  @@index([garageId, status])
+  @@index([vehicleId])
+}
+
+model Preference {
+  id        String   @id @default(uuid())
+  garageId  String
+  name      String
+  email     String?
+  phone     String?
+  brand     String
+  model     String
+  yearMin   Int?
+  yearMax   Int?
+  priceMin  Decimal? @db.Decimal(12, 2)
+  priceMax  Decimal? @db.Decimal(12, 2)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  garage Garage @relation(fields: [garageId], references: [id], onDelete: Cascade)
+
+  @@index([garageId, brand, model])
+  @@index([yearMin, yearMax])
+  @@index([priceMin, priceMax])
+}
+
+model AuditLog {
+  id        String      @id @default(uuid())
+  garageId  String
+  userId    String?
+  entity    AuditEntity
+  entityId  String
+  action    AuditAction
+  changes   Json?
+  createdAt DateTime    @default(now())
+
+  garage Garage @relation(fields: [garageId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([garageId])
+  @@index([entity, entityId])
+}
