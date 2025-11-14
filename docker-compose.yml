@@ -23,9 +23,9 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL=postgresql://carconnect:carconnect@db:5432/carconnect?schema=public
-      UPLOAD_DIR=/app/uploads
-      PORT=3001
+      DATABASE_URL: postgresql://carconnect:carconnect@db:5432/carconnect?schema=public
+      UPLOAD_DIR: /app/uploads
+      PORT: 3001
     ports:
       - "3001:3001"
     volumes:
