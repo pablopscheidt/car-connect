@@ -2,7 +2,6 @@ FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json ./ 
 COPY package-lock.json* ./ 
-COPY .npmrc* ./ 
 RUN corepack enable && pnpm i --frozen-lockfile || npm ci
 
 FROM node:20-alpine AS builder
