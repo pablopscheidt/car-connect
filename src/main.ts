@@ -1,19 +1,40 @@
 import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
-import { FastifyAdapter } from '@nestjs/platform-fastify'
 import { ValidationPipe } from '@nestjs/common'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
+import { join } from 'path'
+import * as express from 'express'
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, new FastifyAdapter())
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true }))
+  const app = await NestFactory.create(AppModule)
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
+    }),
+  )
 
   const config = new DocumentBuilder()
-    .setTitle('Garage Connect API')
-    .setVersion('1.0')
+    .setTitle('Car Connect API')
+    .setDescription('API do Software Web para Garagistas')
+    .setVersion('1.0.0')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      'JWT-auth',
+    )
     .build()
-  const doc = SwaggerModule.createDocument(app, config)
-  SwaggerModule.setup('docs', app, doc)
+
+  const document = SwaggerModule.createDocument(app, config)
+  SwaggerModule.setup('docs', app, document)
+
+  app.use(
+    '/uploads',
+    express.static(join(process.cwd(), process.env.UPLOAD_DIR || 'uploads')),
+  )
+
+  app.enableCors({ origin: ['http://localhost:3001'], credentials: true })
 
   await app.listen(process.env.PORT ?? 4000, '0.0.0.0')
 }

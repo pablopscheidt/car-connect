@@ -1,15 +1,38 @@
-version: "3.8"
+version: "3.9"
+
 services:
   db:
-    image: postgres:16
+    image: postgres:16-alpine
+    container_name: carconnect_db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: pablo
-      POSTGRES_PASSWORD: 123456
-      POSTGRES_DB: car-connect-db
+      POSTGRES_USER: carconnect
+      POSTGRES_PASSWORD: carconnect
+      POSTGRES_DB: carconnect
+    volumes:
+      - pg_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: carconnect_api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL=postgresql://carconnect:carconnect@db:5432/carconnect?schema=public
+      UPLOAD_DIR=/app/uploads
+      PORT=3001
+    ports:
+      - "3001:3001"
     volumes:
-      - pg:/var/lib/postgresql/data
+      - api_uploads:/app/uploads
+    depends_on:
+      - db
+
 volumes:
-  pg:
+  pg_data:
+  api_uploads:
