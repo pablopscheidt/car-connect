@@ -28,5 +28,5 @@ RUN chmod +x /app/docker/api-entrypoint.sh
 # Pasta de uploads
 RUN mkdir -p /app/uploads
 
-EXPOSE 3001
+EXPOSE 4000
 CMD ["sh", "/app/docker/api-entrypoint.sh"]
