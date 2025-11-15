@@ -34,7 +34,10 @@ async function bootstrap() {
     express.static(join(process.cwd(), process.env.UPLOAD_DIR || 'uploads')),
   )
 
-  app.enableCors({ origin: ['http://127.0.0.1:3010'], credentials: true })
+  app.enableCors({
+    origin: ['https://car-connect.pablopscheidt.dev'],
+    credentials: true,
+  })
 
   await app.listen(process.env.PORT ?? 4000, '0.0.0.0')
 }
