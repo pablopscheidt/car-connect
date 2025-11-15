@@ -1,10 +1,10 @@
-FROM node:20-alpine AS deps
+FROM node:lts-alpine AS deps
 WORKDIR /app
 COPY package.json ./ 
 COPY package-lock.json* ./ 
 RUN corepack enable && npm i --frozen-lockfile || npm ci
 
-FROM node:20-alpine AS builder
+FROM node:lts-alpine AS builder
 WORKDIR /app
 ARG DATABASE_URL
 ENV DATABASE_URL=$DATABASE_URL
@@ -13,7 +13,7 @@ COPY . .
 RUN npx prisma generate
 RUN npm run build
 
-FROM node:20-alpine AS runner
+FROM node:lts-alpine AS runner
 WORKDIR /app
 
 COPY --from=builder /app/node_modules ./node_modules
