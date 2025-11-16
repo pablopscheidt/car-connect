@@ -26,12 +26,12 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://carconnect:carconnect@db:5432/carconnect?schema=public
-      UPLOAD_DIR: /app/uploads
+      UPLOAD_DIR: /uploads
       PORT: 4000
     ports:
       - "4000:4000"
     volumes:
-      - api_uploads:/app/uploads
+      - api_uploads:/uploads
     depends_on:
       - db
 
